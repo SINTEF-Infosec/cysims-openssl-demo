@@ -90,7 +90,7 @@ function gen_root_ca() {
     -key private/ca.$AUTH_NAME.key.pem \
     -out certs/ca.$AUTH_NAME.crt.pem \
     -days 3650 \
-    -subj "/C=NO/ST=Trondelag/L=Trondheim/O=$ORG_NAME/OU=TrondheimUnit/CN=CysimsRootCA"
+    -subj "/C=NO/O=$ORG_NAME/CN=CysimsRootCA"
   echo "done"
 }
 
@@ -122,14 +122,15 @@ function gen_intermediate_ca() {
   echo "done"
 
   echo -n "[*] Generating Intermediate CA $num CSR..."
-  openssl req -config openssl_intermediate.cnf -new \
+  openssl req -new \
     -key private/int$num.$AUTH_NAME.key.pem \
     -out csr/int$num.$AUTH_NAME.csr \
-    -subj "/C=NO/ST=Trondelag/L=Trondheim/O=$ORG_NAME/OU=TrondheimUnit/CN=CysimsIntermediateCA-$num"
+    -subj "/C=NO/O=$ORG_NAME/CN=CysimsIntermediateCA-$num"
   echo "done"
 
   echo -n "[*] Signing Intermediate CA $num CSR..."
-  yes | openssl ca -config $CA_DIR/root/openssl_root.cnf \
+  yes | openssl ca \
+    -config $CA_DIR/root/openssl_root.cnf \
     -extensions v3_intermediate_ca \
     -days 3650 \
     -notext \
@@ -157,10 +158,11 @@ function gen_intermediate_ca() {
 # Generate the Ships artifacts (key, csr, certificate)
 # ARG1: id of the ship (0..NB_SHIP)
 # ARG2: id of the CA (0..NB_INT_CA) that is gonna be used
+# ARG3: common name to use for the ship
 function gen_ship_cert() {
   num=$1
   int_ca=$2
-  ship_id=`printf %08d $(($issued_ships))`
+  ship_cn=$3
 
   cd $CA_DIR/ships/ship$num
 
@@ -173,17 +175,17 @@ function gen_ship_cert() {
   echo "done"
 
   echo -n " - [*] Generating CSR for Ship $num..."
-  openssl req -new -nodes \
+  openssl req -new \
     -key private/ship$num.$AUTH_NAME.key.pem \
     -out csr/ship$num.int$int_ca.$AUTH_NAME.csr.pem \
-    -subj "/C=NO/ST=Trondelag/L=Trondheim/O=$ORG_NAME/OU=TrondheimUnit/CN=SHIP-$ship_id"
+    -subj "/CN=$ship_cn/C=NO/O=$ORG_NAME/OU=TrondheimUnit"
   echo "done"
 
   echo -n " - [*] Signing Ship $num CSR using Intermediate CA $int_ca..."
   yes | openssl ca \
     -config $CA_DIR/intermediate/intermediate$int_ca/openssl_intermediate.cnf \
     -extensions ship_cert \
-    -days 3650 \
+    -days 1095 \
     -notext \
     -md sha256 \
     -in csr/ship$num.int$int_ca.$AUTH_NAME.csr.pem \
@@ -222,17 +224,17 @@ function gen_shore_station_cert() {
   echo "done"
 
   echo -n " - [*] Generating CSR for Shore Station $num..."
-  openssl req -new -nodes \
+  openssl req -new \
     -key private/shore_station$num.$AUTH_NAME.key.pem \
     -out csr/shore_station$num.int$int_ca.$AUTH_NAME.csr.pem \
-    -subj "/C=NO/ST=Trondelag/L=Trondheim/O=$ORG_NAME/OU=TrondheimUnit/CN=SHORE-STATION-$shore_station_id"
+    -subj "/CN=SHORE-STATION-$shore_station_id/C=NO/O=$ORG_NAME/OU=TrondheimUnit/"
   echo "done"
 
   echo -n " - [*] Signing Shore Station $num CSR using Intermediate CA $int_ca..."
   yes | openssl ca \
     -config $CA_DIR/intermediate/intermediate$int_ca/openssl_intermediate.cnf \
     -extensions shore_station_cert \
-    -days 3650 \
+    -days 1095 \
     -notext \
     -md sha256 \
     -in csr/shore_station$num.int$int_ca.$AUTH_NAME.csr.pem \
@@ -276,7 +278,8 @@ for (( c=0; c<$NB_SHIP; c++ ))
 do
   # Choosing a Intermediate CA randomly
   int_ca=`shuf -i 0-$(($NB_INT_CA - 1)) -n 1`
-  gen_ship_cert $c $int_ca
+  ship_nb=`printf %08d $((c))`
+  gen_ship_cert $c $int_ca "258$int_ca$ship_nb"
 done
 
 echo "STEP 4: Shore Stations Certificates Generation"

@@ -23,6 +23,10 @@ Then you can launch the script and access the results from your host machine:
 cd /mnt/volumes && ./run_demo.sh
 ```
 
+## Security considerations
+
+This project is for learning and demo purposes only, and should not be used for any real application. In a real world scenario, keys must be password protected, and the root CA must be kept offline. Additional configuration is also required.
+
 ## Results
 
 The demo results in a `ca` directory containing all the certificates and artefacts of the PKI.
