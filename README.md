@@ -1,4 +1,4 @@
-# CySims PKI DEMO
+# CySiMS PKI DEMO
 
 This demo requires openssl with built-in support for Elliptic Curves.
 
